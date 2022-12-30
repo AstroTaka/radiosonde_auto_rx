@@ -236,9 +236,12 @@ def get_sdr_iq_cmd(
 
     if sdr_type == "RTLSDR":
         _gain = ""
+        _agc = ""
         if gain:
             if gain >= 0:
                 _gain = f"-g {gain:.1f} "
+            elif gain == -2:
+                _agc = f"-E agc "
 
         _agc = ""
         if agc:
