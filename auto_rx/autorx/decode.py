@@ -1348,11 +1348,13 @@ class SondeDecoder(object):
             traceback.print_exc()
             self.log_error("Error while killing subprocess - %s" % str(e))
 
-        if self.sonde_type == "MEISEI":
-            if self.sonde_subtype != "RS11G" and self.save_decode_iq and self.sonde_freq < 405150000:
-                if(os.path.isfile(self.iq_filename)):
-                    os.remove(self.iq_filename)
-                    self.log_info("Remove IQ file: %s" % self.iq_filename);
+        if self.sonde_type == "MEISEI" and self.save_decode_iq and os.path.isfile(self.iq_filename):
+            if self.sonde_subtype == "IMS100" and self.sonde_freq < 405150000:
+                os.remove(self.iq_filename)
+                self.log_info("Remove IQ file: %s" % self.iq_filename);
+            else:
+                os.rename(self.iq_filename,self.iq_filename.replace("MEISEI",self.sonde_subtype))
+                self.log_info("Rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)));
 
         self.log_info("Closed decoder subprocess.")
         self.decoder_running = False
