@@ -1350,11 +1350,17 @@ class SondeDecoder(object):
 
         if self.sonde_type == "MEISEI" and self.save_decode_iq and os.path.isfile(self.iq_filename):
             if self.sonde_subtype == "IMS100" and self.sonde_freq < 405150000:
-                os.remove(self.iq_filename)
-                self.log_info("Remove IQ file: %s" % self.iq_filename);
+                try:
+                    os.remove(self.iq_filename)
+                    self.log_info("Remove IQ file: %s" % self.iq_filename)
+                except:
+                    self.log_error("Error remove IQ file: %s" % self.iq_filename)
             else:
-                os.rename(self.iq_filename,self.iq_filename.replace("MEISEI",self.sonde_subtype))
-                self.log_info("Rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)));
+                try:
+                    os.rename(self.iq_filename,self.iq_filename.replace("MEISEI",self.sonde_subtype))
+                    self.log_info("Rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)))
+                except:
+                    self.log_error("Error rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)))
 
         self.log_info("Closed decoder subprocess.")
         self.decoder_running = False
