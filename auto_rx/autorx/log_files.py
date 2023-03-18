@@ -28,7 +28,7 @@ from autorx.utils import (
 from autorx.geometry import GenericTrack, getDensity
 
 
-def log_filename_to_stats(filename, quicklook=False):
+def log_filename_to_stats(filename, quicklook=False, quicklook_option=""):
     """ Attempt to extract information about a log file from a supplied filename """
     # Example log file name: 20210430-235413_IMET-89F2720A_IMET_401999_sonde.log
     # ./log/20200320-063233_R2230624_RS41_402500_sonde.log
@@ -85,7 +85,7 @@ def log_filename_to_stats(filename, quicklook=False):
 
         if quicklook:
             try:
-                _quick = log_quick_look(filename)
+                _quick = log_quick_look(filename, quicklook_option)
                 if _quick:
                     _output["first"] = _quick["first"]
                     _output["last"] = _quick["last"]
@@ -93,7 +93,7 @@ def log_filename_to_stats(filename, quicklook=False):
                     _output["max_range"] = int(max(_output["first"]["range_km"],_output["last"]["range_km"]))
                     _output["last_range"] = int(_output["last"]["range_km"])
                     _output["first_height"] = int(_output["first"]["alt"])
-                    _output["last_height"] = int(_output["last"]["alt"])
+                    _output["min_height"] = int(_output["last"]["alt"])
                     _output["freq"] = _quick["first"]["freq"]
                     try:
                         _output["max_height"] = int(_quick["max_height"])
@@ -109,7 +109,7 @@ def log_filename_to_stats(filename, quicklook=False):
         return None
 
 
-def log_quick_look(filename):
+def log_quick_look(filename, quicklook_option=""):
     """ Attempt to read in the first and last line in a log file, and return the first/last position observed. """
 
     _filesize = os.path.getsize(filename)
@@ -197,37 +197,38 @@ def log_quick_look(filename):
             "elevation": _pos_info["elevation"],
         }
 
-        # find Max H
-        _seek_point = _filesize - 5000
-        start_check = True
-        while _seek_point>0:
-            _file.seek(_seek_point)
-            _remainder = _file.read(5000).split("\n")
-            alt1 = float(_remainder[1].split(",")[5])
-            alt2 = float(_remainder[-2].split(",")[5])
-            if alt2>alt1 and start_check==True:
-                # bumping...
-                break
-            if alt2>alt1:
-                # find bumping before burst
-                _remainder_num = len(_remainder)-2
-                max_alt1 = 0
-                for num in range(_remainder_num):
-                    max_alt1 = max(max_alt1,float(_remainder[num+1].split(",")[5]))
-
-                _seek_point+=5000
+        if quicklook_option in '_maxh_':
+            # find Max H
+            _seek_point = _filesize - 5000
+            start_check = True
+            while _seek_point>0:
                 _file.seek(_seek_point)
                 _remainder = _file.read(5000).split("\n")
+                alt1 = float(_remainder[1].split(",")[5])
+                alt2 = float(_remainder[-2].split(",")[5])
+                if alt2>alt1 and start_check==True:
+                    # bumping...
+                    break
+                if alt2>alt1:
+                    # find bumping before burst
+                    _remainder_num = len(_remainder)-2
+                    max_alt1 = 0
+                    for num in range(_remainder_num):
+                        max_alt1 = max(max_alt1,float(_remainder[num+1].split(",")[5]))
 
-                _remainder_num = len(_remainder)-2
-                max_alt2 = 0
-                for num in range(_remainder_num):
-                    max_alt2 = max(max_alt2,float(_remainder[num+1].split(",")[5]))
+                    _seek_point+=5000
+                    _file.seek(_seek_point)
+                    _remainder = _file.read(5000).split("\n")
 
-                _output['max_height']=max(max_alt1,max_alt2)    
-                break
-            _seek_point-=5000
-            start_check = False
+                    _remainder_num = len(_remainder)-2
+                    max_alt2 = 0
+                    for num in range(_remainder_num):
+                        max_alt2 = max(max_alt2,float(_remainder[num+1].split(",")[5]))
+
+                    _output['max_height']=max(max_alt1,max_alt2)
+                    break
+                _seek_point-=5000
+                start_check = False
 
         return _output
     except Exception as e:
@@ -238,7 +239,7 @@ def log_quick_look(filename):
         return _output
 
 
-def list_log_files(quicklook=False):
+def list_log_files(quicklook=False, quicklook_option=""):
     """ Look for all sonde log files within the logging directory """
 
     # Output list, which will contain one object per log file, ordered by time
@@ -254,7 +255,7 @@ def list_log_files(quicklook=False):
     _log_files.reverse()
 
     for _file in _log_files:
-        _entry = log_filename_to_stats(_file, quicklook=quicklook)
+        _entry = log_filename_to_stats(_file, quicklook=quicklook, quicklook_option=quicklook_option)
         if _entry:
             _output.append(_entry)
 
@@ -458,7 +459,7 @@ def calculate_skewt_data(
 
             _temp = temperature[i]
 
-            if humidity[i] >= 0.0:
+            if humidity[i] > 0.0:
                 _rh = humidity[i]
 
                 _dp = (
