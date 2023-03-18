@@ -101,7 +101,8 @@ function redraw_scan_chart(){
 		temp_date = temp_date.slice(0, -3);
 		temp_date += "Z";
 		var date = new Date(temp_date);
-		var date_converted = date.toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'});
+        var timezone = new Date().toLocaleDateString(undefined, {day:'2-digit',timeZoneName: 'short' }).substring(4);
+		var date_converted = date.toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
 		$('#scan_results').html('<b>Latest Scan:</b> ' + date_converted);
 	} else {
 		$('#scan_results').html('<b>Latest Scan:</b> ' + (scan_chart_latest_timestamp.slice(0, -3) + 'Z').replace("T", " ").replace("Z", "").slice(0, -4) + ' UTC');
