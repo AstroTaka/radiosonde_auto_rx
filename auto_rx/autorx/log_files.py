@@ -201,7 +201,7 @@ def log_quick_look(filename, quicklook_option=""):
             "elevation": _pos_info["elevation"],
         }
 
-        if quicklook_option in '_maxh_':
+        if '_maxh_' in quicklook_option:
             # find Max H
             _seek_point = _filesize - 5000
             start_check = True
@@ -234,7 +234,7 @@ def log_quick_look(filename, quicklook_option=""):
                 _seek_point-=5000
                 start_check = False
 
-        if quicklook_option in '_minr_':
+        if '_minr_' in quicklook_option:
             # find Min R
             pos1=0
             pos2=_filesize-300
