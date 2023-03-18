@@ -49,6 +49,15 @@
 
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
             
+            var quick_list_option="";
+            var show = getCookie("sonde_list_col6");
+            if(show==null || show=="true"){
+                quick_list_option += "_maxh_";
+            }
+            if(quick_list_option==""){
+                quick_list_option = "none";
+            }
+
             $.ajax({
                   // Get station.cfg file.
                   url: "/get_config",
@@ -64,7 +73,7 @@
 
             $.ajax({
                   // Get list of sonde.
-                  url: "/get_log_list",
+                  url: "/get_log_list/" + quick_list_option,
                   dataType: 'json',
                   async: false,
                   success: function(data) {
@@ -121,6 +130,18 @@
                             return cell.getValue().toFixed(3);
                         }},
                     {title:"Count", field:"lines", width:72, resizable:false, headerTooltip:"Received Lines of Telemetry"}, // 75
+                    {title:"1st H", field:"first_height", width:75, resizable:false, headerTooltip:"Fiest Observed Height (m)",
+                        formatter:function(cell, formatterParams, onRendered){
+                            return cell.getValue() + " m"; //return the contents of the cell;
+                        }},
+                    {title:"Max H", field:"max_height", width:75, resizable:false, headerTooltip:"Max Observed Height (m)",
+                        formatter:function(cell, formatterParams, onRendered){
+                            if(cell.getValue()!=undefined){
+                                return cell.getValue() + " m"; //return the contents of the cell;
+                            } else {
+                                return '--'
+                            }
+                        }},
                     {title:"Last H", field:"min_height", width:75, resizable:false, headerTooltip:"Last Observed Height (m)",
                         formatter:function(cell, formatterParams, onRendered){
                             return cell.getValue() + " m"; //return the contents of the cell;
@@ -1172,12 +1193,18 @@
                             table.showColumn("lines");
                             break;
                         case "5":
-                            table.showColumn("min_height");
+                            table.showColumn("first_height");
                             break;
                         case "6":
-                            table.showColumn("last_range");
+                            table.showColumn("max_height");
                             break;
                         case "7":
+                            table.showColumn("min_height");
+                            break;
+                        case "8":
+                            table.showColumn("last_range");
+                            break;
+                        case "9":
                             table.showColumn("max_range");
                             break;
                     }
@@ -1199,12 +1226,18 @@
                             table.hideColumn("lines");
                             break;
                         case "5":
-                            table.hideColumn("min_height");
+                            table.hideColumn("first_height");
                             break;
                         case "6":
-                            table.hideColumn("last_range");
+                            table.hideColumn("max_height");
                             break;
                         case "7":
+                            table.hideColumn("min_height");
+                            break;
+                        case "8":
+                            table.hideColumn("last_range");
+                            break;
+                        case "9":
                             table.hideColumn("max_range");
                             break;
 		            }
@@ -1222,7 +1255,7 @@
 	        });
 
 	        // Runs once at page load to set which Tabulator columns to show/hide per set cookies
-            for (i = 0; i < 8; i++) {
+            for (i = 0; i < 10; i++) {
                 var show = getCookie("sonde_list_col"+i);
                 if (show == 'false') {
                     document.getElementById("checkbox" + i).checked = false;
@@ -1243,12 +1276,18 @@
                             table.hideColumn("lines");
                             break;
                         case 5:
-                            table.hideColumn("min_height");
+                            table.hideColumn("first_height");
                             break;
                         case 6:
-                            table.hideColumn("last_range");
+                            table.hideColumn("max_height");
                             break;
                         case 7:
+                            table.hideColumn("min_height");
+                            break;
+                        case 8:
+                            table.hideColumn("last_range");
+                            break;
+                        case 9:
                             table.hideColumn("max_range");
                             break;
                     }
@@ -1262,7 +1301,7 @@
                             setCookie("sonde_list_col" + i, 'true', 365);
                             document.getElementById("checkbox" + i).checked = true;
                         }
-                        if ([2,3,4,5,6,7].includes(i)) {
+                        if ([2,3,4,5,6,7,8,9].includes(i)) {
                             setCookie("sonde_list_col" + i, 'false', 365);
                             document.getElementById("checkbox" + i).checked = false;
                             switch(i) {
@@ -1282,15 +1321,20 @@
                                     table.hideColumn("lines");
                                     break;
                                 case 5:
-                                    table.hideColumn("min_height");
+                                    table.hideColumn("first_height");
                                     break;
                                 case 6:
-                                    table.hideColumn("last_range");
+                                    table.hideColumn("max_height");
                                     break;
                                 case 7:
+                                    table.hideColumn("min_height");
+                                    break;
+                                case 8:
+                                    table.hideColumn("last_range");
+                                    break;
+                                case 9:
                                     table.hideColumn("max_range");
                                     break;
-                            }
                         }
                     }
                 }
@@ -1503,10 +1547,14 @@
                   <input type="checkbox" class="4" id="checkbox4">
                   <label> Count</label><br>
                   <input type="checkbox" class="5" id="checkbox5" checked>
-                  <label> Last Height</label><br>
+                  <label> 1st Height</label><br>
                   <input type="checkbox" class="6" id="checkbox6" checked>
-                  <label> Last Range</label><br>
+                  <label> Max Height</label><br>
                   <input type="checkbox" class="7" id="checkbox7" checked>
+                  <label> Last Height</label><br>
+                  <input type="checkbox" class="8" id="checkbox6" checked>
+                  <label> Last Range</label><br>
+                  <input type="checkbox" class="9" id="checkbox7" checked>
                   <label> Max Range</label><br>
               </form>
         </div>
