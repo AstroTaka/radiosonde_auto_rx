@@ -11,7 +11,14 @@ function update_task_list(){
 
         for (_task in data){
             // Append the current task to the task list text.
-            task_info += "SDR #" + _task + ": " + data[_task]["task"] + "    ";
+            if(task_info!=""){
+                task_info += "/ ";
+            }
+            if(_task.includes("SPY")){
+                task_info += _task + ": " + data[_task]["task"] + "    ";
+            } else {
+                task_info += "SDR #" + _task + ": " + data[_task]["task"] + "    ";
+            }
             if(data[_task]["freq"] > 0.0){
                 $('#stop-frequency-select')
                     .append($("<option></option>")

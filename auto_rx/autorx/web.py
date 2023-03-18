@@ -114,7 +114,7 @@ def flask_get_task_list():
     _sdr_list = {}
 
     for _sdr in autorx.sdr_list.keys():
-        _sdr_list[str(_sdr)] = {"task": "Not Tasked", "freq": 0}
+        _sdr_list[str(_sdr)] = {"task": "-", "freq": 0}
         if str(_sdr) in _task_list:
             if _task_list[str(_sdr)] == "SCAN":
                 _sdr_list[str(_sdr)] = {"task": "Scanning", "freq": 0}
