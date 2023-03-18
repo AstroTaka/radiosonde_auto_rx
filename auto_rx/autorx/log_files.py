@@ -99,6 +99,10 @@ def log_filename_to_stats(filename, quicklook=False, quicklook_option=""):
                         _output["max_height"] = int(_quick["max_height"])
                     except:
                         pass
+                    try:
+                        _output["min_range"] = int(_quick["min_range"])
+                    except:
+                        pass
             except Exception as e:
                 logging.error(f"Could not quicklook file {filename}: {str(e)}")
 
@@ -229,6 +233,50 @@ def log_quick_look(filename, quicklook_option=""):
                     break
                 _seek_point-=5000
                 start_check = False
+
+        if quicklook_option in '_minr_':
+            # find Min R
+            pos1=0
+            pos2=_filesize-300
+            distance1=_output["first"]["range_km"]
+            distance2=_output["last"]["range_km"]
+            distance3=last_distance=min(distance1,distance2)
+
+            for count in range(10):
+                _seek_point = (pos1+pos2)/2
+                if _seek_point > 0:
+                    _file.seek(_seek_point)
+                    _remainder = _file.read()
+                    # Get line
+                    _last_line = _remainder.split("\n")[-2]
+                    _fields = _last_line.split(",")
+                    _last_lat = float(_fields[3])
+                    _last_lon = float(_fields[4])
+                    _last_alt = float(_fields[5])
+                    _pos_info = position_info(
+                        (
+                            autorx.config.global_config["station_lat"],
+                            autorx.config.global_config["station_lon"],
+                            autorx.config.global_config["station_alt"],
+                        ),
+                        (_last_lat, _last_lon, _last_alt),
+                    )
+                    distance3 = _pos_info["straight_distance"] / 1000.0
+                    if abs(distance3-last_distance)>1.0:
+                        if abs(distance1-distance3) < abs(distance2-distance3):
+                            pos2 = _seek_point
+                            distance2 = distance3
+                        else:
+                            pos1 = _seek_point
+                            distance1 = distance3
+
+                        last_distance = distance3
+                    else:
+                        break            
+                else:
+                    break
+
+            _output['min_range']=distance3
 
         return _output
     except Exception as e:

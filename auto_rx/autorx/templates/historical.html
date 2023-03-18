@@ -52,10 +52,17 @@
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
             
             var quick_list_option="";
+            
             var show = getCookie("sonde_list_col6");
             if(show==null || show=="true"){
                 quick_list_option += "_maxh_";
             }
+
+            show = getCookie("sonde_list_col8");
+            if(show==null || show=="true"){
+                quick_list_option += "_minr_";
+            }
+
             if(quick_list_option==""){
                 quick_list_option = "none";
             }
@@ -147,6 +154,14 @@
                     {title:"Last H", field:"min_height", width:75, resizable:false, headerTooltip:"Last Observed Height (m)",
                         formatter:function(cell, formatterParams, onRendered){
                             return cell.getValue() + " m"; //return the contents of the cell;
+                        }},
+                    {title:"Min R", field:"min_range", width:75, resizable:false, headerTooltip:"Min Observed Range (km)",
+                        formatter:function(cell, formatterParams, onRendered){
+                            if(cell.getValue()!=undefined){
+                                return cell.getValue() + " km"; //return the contents of the cell;
+                            } else {
+                                return '--'
+                            }
                         }},
                     {title:"Last R", field:"last_range", width:75, resizable:false, headerTooltip:"Last Observed Range (km)",
                         formatter:function(cell, formatterParams, onRendered){
@@ -1220,9 +1235,12 @@
                             table.showColumn("min_height");
                             break;
                         case "8":
-                            table.showColumn("last_range");
+                            table.showColumn("min_range");
                             break;
                         case "9":
+                            table.showColumn("last_range");
+                            break;
+                        case "10":
                             table.showColumn("max_range");
                             break;
                     }
@@ -1253,9 +1271,12 @@
                             table.hideColumn("min_height");
                             break;
                         case "8":
-                            table.hideColumn("last_range");
+                            table.hideColumn("min_range");
                             break;
                         case "9":
+                            table.hideColumn("last_range");
+                            break;
+                        case "10":
                             table.hideColumn("max_range");
                             break;
 		            }
@@ -1273,7 +1294,7 @@
 	        });
 
 	        // Runs once at page load to set which Tabulator columns to show/hide per set cookies
-            for (i = 0; i < 10; i++) {
+            for (i = 0; i < 11; i++) {
                 var show = getCookie("sonde_list_col"+i);
                 if (show == 'false') {
                     document.getElementById("checkbox" + i).checked = false;
@@ -1303,9 +1324,12 @@
                             table.hideColumn("min_height");
                             break;
                         case 8:
-                            table.hideColumn("last_range");
+                            table.hideColumn("min_range");
                             break;
                         case 9:
+                            table.hideColumn("last_range");
+                            break;
+                        case 10:
                             table.hideColumn("max_range");
                             break;
                     }
@@ -1319,7 +1343,7 @@
                             setCookie("sonde_list_col" + i, 'true', 365);
                             document.getElementById("checkbox" + i).checked = true;
                         }
-                        if ([2,3,4,5,6,7,8,9].includes(i)) {
+                        if ([2,3,4,5,6,7,8,9,10].includes(i)) {
                             setCookie("sonde_list_col" + i, 'false', 365);
                             document.getElementById("checkbox" + i).checked = false;
                             switch(i) {
@@ -1348,9 +1372,12 @@
                                     table.hideColumn("min_height");
                                     break;
                                 case 8:
-                                    table.hideColumn("last_range");
+                                    table.hideColumn("min_range");
                                     break;
                                 case 9:
+                                    table.hideColumn("last_range");
+                                    break;
+                                case 10:
                                     table.hideColumn("max_range");
                                     break;
                             }
@@ -1576,8 +1603,10 @@
                   <input type="checkbox" class="7" id="checkbox7" checked>
                   <label> Last Height</label><br>
                   <input type="checkbox" class="8" id="checkbox8" checked>
-                  <label> Last Range</label><br>
+                  <label> Min Range</label><br>
                   <input type="checkbox" class="9" id="checkbox9" checked>
+                  <label> Last Range</label><br>
+                  <input type="checkbox" class="10" id="checkbox10" checked>
                   <label> Max Range</label><br>
               </form>
         </div>
