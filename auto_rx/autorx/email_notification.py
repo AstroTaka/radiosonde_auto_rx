@@ -133,7 +133,7 @@ class EmailNotification(object):
                 }
             )
 
-            if self.launch_notifications:
+            if self.launch_notifications and telemetry["type"]=="RS11G":
 
                 try:
                     # This is a new sonde. Send the email.

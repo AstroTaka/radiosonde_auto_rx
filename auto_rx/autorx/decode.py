@@ -123,6 +123,8 @@ class SondeDecoder(object):
     def __init__(
         self,
         sonde_type="None",
+        iq_filename="None",
+        sonde_subtype="None",
         sonde_freq=400000000.0,
         sdr_type="RTLSDR",
         sdr_hostname="localhost",
@@ -773,7 +775,7 @@ class SondeDecoder(object):
 
             # Add in tee command to save IQ to disk if debugging is enabled.
             if self.save_decode_iq:
-                demod_cmd += " tee decode_IQ_%s.bin |" % str(self.rtl_device_idx)
+                demod_cmd += " tee decode_IQ_%s.bin |" % (str(self.rtl_device_idx) + '_RS41_' + datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z').replace(':',''))
 
             demod_cmd += "./fsk_demod --cs16 -b %d -u %d -s --stats=%d 2 %d %d - -" % (
                 _lower,
@@ -898,8 +900,8 @@ class SondeDecoder(object):
             )
 
             # Add in tee command to save IQ to disk if debugging is enabled.
-            if self.save_decode_iq:
-                demod_cmd += " tee decode_IQ_%s.bin |" % str(self.rtl_device_idx)
+            #if self.save_decode_iq:
+            #    demod_cmd += " tee decode_IQ_%s.bin |" % (str(self.rtl_device_idx) + '_DFM_' + datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z').replace(':',''))
 
             demod_cmd += "./fsk_demod --cs16 -b %d -u %d -s --stats=%d 2 %d %d - -" % (
                 _lower,
@@ -1203,7 +1205,8 @@ class SondeDecoder(object):
 
             # Add in tee command to save IQ to disk if debugging is enabled.
             if self.save_decode_iq:
-                demod_cmd += " tee decode_IQ_%s.bin |" % str(self.rtl_device_idx)
+                self.iq_filename = "decode_IQ_%s.bin" % (str(self.rtl_device_idx)  + '_MEISEI_' + datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z').replace(':',''))
+                demod_cmd += " tee %s |" % (self.iq_filename)
 
             demod_cmd += "./fsk_demod --cs16 -s -b %d -u %d --stats=%d 2 %d %d - -" % (
                 _lower,
@@ -1345,6 +1348,20 @@ class SondeDecoder(object):
             traceback.print_exc()
             self.log_error("Error while killing subprocess - %s" % str(e))
 
+        if self.sonde_type == "MEISEI" and self.save_decode_iq and os.path.isfile(self.iq_filename):
+            if self.sonde_subtype == "IMS100" and self.sonde_freq < 405150000:
+                try:
+                    os.remove(self.iq_filename)
+                    self.log_info("Remove IQ file: %s" % self.iq_filename)
+                except:
+                    self.log_error("Error remove IQ file: %s" % self.iq_filename)
+            else:
+                try:
+                    os.rename(self.iq_filename,self.iq_filename.replace("MEISEI",self.sonde_subtype))
+                    self.log_info("Rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)))
+                except:
+                    self.log_error("Error rename IQ file: %s -> %s" % (self.iq_filename, self.iq_filename.replace("MEISEI",self.sonde_subtype)))
+
         self.log_info("Closed decoder subprocess.")
         self.decoder_running = False
 
@@ -1476,6 +1493,7 @@ class SondeDecoder(object):
                 elif self.sonde_type == "MEISEI":
                     # For meisei sondes, we are provided a subtype that distinguishes iMS-100 and RS11G sondes.
                     _telemetry["type"] = _telemetry["subtype"]
+                    self.sonde_subtype = _telemetry["subtype"]
 
                 else:
                     # For other sonde types, we leave the type field as it is, even if we are provided

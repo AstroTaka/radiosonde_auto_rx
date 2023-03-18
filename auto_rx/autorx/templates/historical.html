@@ -30,6 +30,8 @@
     <script src="{{ url_for('static', filename='js/skewt.js') }}"></script>
     
     <script>
+        timezone = new Date().toLocaleDateString(undefined, {day:'2-digit',timeZoneName: 'short' }).substring(4);
+
         var autorx_config = {
             lat: 0.0,
             lon: 0.0
@@ -283,7 +285,8 @@
                         landing_alt = parseFloat(value['last']['alt']);
                     }
                     if (getCookie('UTC') == 'false') {
-                        landing_time = new Date(value['last']['datetime']).toLocaleString("en-AU");
+                        landing_time = new Date(value['last']['datetime']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
+
                     } else {
                         landing_time = value['last']['datetime'];
                     }
@@ -386,7 +389,7 @@
                         launch_alt = parseFloat(value['first']['alt']);
                     }
                     if (getCookie('UTC') == 'false') {
-                        launch_time = new Date(value['first']['datetime']).toLocaleString("en-AU");
+                        launch_time = new Date(value['first']['datetime']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
                     } else {
                         launch_time = value['first']['datetime'];
                     }
@@ -517,7 +520,7 @@
                                             launch_alt = parseFloat(data['first'][2]);
                                         }
                                         if (getCookie('UTC') == 'false') {
-                                            launch_time = new Date(data['first_time']).toLocaleString("en-AU");
+                                            launch_time = new Date(data['first_time']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
                                         } else {
                                             launch_time = data['first_time'];
                                         }
@@ -602,7 +605,7 @@
                                             landing_alt = parseFloat(data['last'][2]);
                                         }
                                         if (getCookie('UTC') == 'false') {
-                                            landing_time = new Date(data['last_time']).toLocaleString("en-AU");
+                                            landing_time = new Date(data['last_time']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
                                         } else {
                                             landing_time = data['last_time']
                                         }
@@ -685,7 +688,7 @@
                                         burst_alt = parseFloat(data['burst'][2]);
                                     }
                                     if (getCookie('UTC') == 'false') {
-                                        burst_time = new Date(data['burst_time']).toLocaleString("en-AU");
+                                        burst_time = new Date(data['burst_time']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
                                     } else {
                                         burst_time = data['burst_time'];
                                     }
@@ -897,11 +900,22 @@
                             }
                                 
                             if (getCookie('UTC') == 'false') {
-                                launch_time = new Date(data['first_time']).toLocaleString("en-AU");
+                                launch_time = new Date(data['first_time']).toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
                             } else {
                                 launch_time = data['first_time'];
                             }
                             $('#skewt-header').html("Skew-T - "+_type + " " + _serial + " " + launch_time);
+
+                            if(data['burst_time']!=data['last_time']){
+                                if (getCookie('UTC') == 'false') {
+                                    burst_time =  new Date(data['burst_time']).toLocaleString(window.navigator.language,{year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
+                                } else {
+                                    burst_time = data['burst_time'];
+                                }
+                                $('#skewt-header-sub').html("First Lat/Lon/Alt: "+data['first'][0]+" "+data['first'][1]+" "+data['first'][2]+"m, Burst: "+burst_time + ' at '+Math.floor(parseFloat(data['burst'][2])) + 'm');
+                            } else {
+                                $('#skewt-header-sub').html("First Lat/Lon/Alt: "+data['first'][0]+" "+data['first'][1]+" "+data['first'][2]+"m, Burst: --");
+                            }
 
                             try {
                                 skewt.plot(data.skewt);
@@ -947,7 +961,11 @@
                 disableMenu();
                 showSkewT();
             });
-
+            $("#plotalllabel-skewt").click(function(){
+               disableMenu();
+               showSkewT();
+            });
+                
             function downloadLogs() {
                 // Download a set of log files.
                 selectedrows = table.getSelectedData();
@@ -1516,6 +1534,10 @@
         <h2 id="skewt-header" style="width:100%;text-align:center;">Skew-T Plot</h2>
         <div id="skewt" style="width:90%;margin:3px auto"></div>
         <span id="skewt-buttons", style="width:100%;text-align:center;visibility:hidden;vertical-align:middle;">
+           <span style="margin:10px;display:inline-block;">
+               <input type="checkbox" id="plotalllabel-skewt" name="plotalllabel">
+               <label for="plotalllabel">Plot All Label</label>
+            </span>
             Decimation:
             <input style="vertical-align:middle;" type="range" min="1" max="100" value="25" class="slider" id="skewt-decimation" list="my-detents">
             <datalist id="my-detents">
