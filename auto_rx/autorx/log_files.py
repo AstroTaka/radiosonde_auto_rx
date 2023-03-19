@@ -248,8 +248,8 @@ def log_quick_look(filename, quicklook_option=""):
                     _file.seek(_seek_point)
                     _remainder = _file.read()
                     # Get line
-                    _last_line = _remainder.split("\n")[-2]
-                    _fields = _last_line.split(",")
+                    _line = _remainder.split("\n")[-2]
+                    _fields = _line.split(",")
                     _last_lat = float(_fields[3])
                     _last_lon = float(_fields[4])
                     _last_alt = float(_fields[5])
