@@ -190,6 +190,7 @@ class SondeDecoder(object):
         # Local copy of init arguments
         self.sonde_type = sonde_type
         self.sonde_freq = sonde_freq
+        self.sode_subtype = sonde_subtype
 
         self.sdr_type = sdr_type
 
