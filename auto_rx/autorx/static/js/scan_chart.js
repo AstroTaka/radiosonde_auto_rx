@@ -97,8 +97,13 @@ function redraw_scan_chart(){
 
 	// Show the latest scan time.
 	if (getCookie('UTC') == 'false') {
-		var date = new Date(scan_chart_latest_timestamp);
-		var date_converted = date.toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'});
+		temp_date = scan_chart_latest_timestamp;
+		temp_date = temp_date.slice(0, -3);
+		temp_date += "Z";
+		var date = new Date(temp_date);
+        var timezone = new Date().toLocaleDateString(undefined, {day:'2-digit',timeZoneName: 'short' }).substring(4);
+		var date_converted = date.toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
+		$('#scan_results').html('<b>Latest Scan:</b> ' + date_converted);
 	} else {
 		var date_converted = scan_chart_latest_timestamp.slice(0, 19).replace("T", " ") + ' UTC'
 	}

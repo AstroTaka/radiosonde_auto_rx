@@ -166,7 +166,7 @@ class EmailNotification(object):
                     except Exception as e:
                         self.log_error("Error sending E-mail - %s" % str(e))
 
-            elif self.launch_notifications:
+            elif self.launch_notifications and telemetry["type"]=="RS11G":
 
                 try:
                     # This is a new sonde. Send the email.

@@ -120,7 +120,7 @@ def flask_get_task_list():
     _sdr_list = {}
 
     for _sdr in autorx.sdr_list.keys():
-        _sdr_list[str(_sdr)] = {"task": "Not Tasked", "freq": 0}
+        _sdr_list[str(_sdr)] = {"task": "-", "freq": 0}
         if str(_sdr) in _task_list:
             if _task_list[str(_sdr)] == "SCAN":
                 _sdr_list[str(_sdr)] = {"task": "Scanning", "freq": 0}
@@ -317,10 +317,10 @@ def shutdown_flask(shutdown_key):
     return ""
 
 
-@app.route("/get_log_list")
-def flask_get_log_list():
+@app.route("/get_log_list/<quicklook_option>")
+def flask_get_log_list(quicklook_option):
     """ Return a list of log files, as a list of objects """
-    return json.dumps(list_log_files(quicklook=True))
+    return json.dumps(list_log_files(quicklook=True, quicklook_option=quicklook_option))
 
 def flask_running():
     global flask_shutdown_key
