@@ -48,6 +48,9 @@
             quickLandings = false;
 
             namespace = '/update_status';
+            var socket_path = "{{ url_for("static", filename="") }}".replace('static/', 'socket.io')
+            var socket = io.connect(location.origin+namespace, {'path': socket_path});
+
 
             var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
             
@@ -69,7 +72,7 @@
 
             $.ajax({
                   // Get station.cfg file.
-                  url: "/get_config",
+                  url: "get_config",
                   dataType: 'json',
                   async: false,
                   success: function(data) {
@@ -153,7 +156,11 @@
                         }},
                     {title:"Last H", field:"min_height", width:75, resizable:false, headerTooltip:"Last Observed Height (m)",
                         formatter:function(cell, formatterParams, onRendered){
-                            return cell.getValue() + " m"; //return the contents of the cell;
+                            if (getCookie('imperial') == 'true') {
+                                return cell.getValue()*3.28084.toFixed(0) + " ft";
+                            } else {
+                                return cell.getValue() + " m";
+                            }
                         }},
                     {title:"Min R", field:"min_range", width:75, resizable:false, headerTooltip:"Min Observed Range (km)",
                         formatter:function(cell, formatterParams, onRendered){
@@ -165,11 +172,19 @@
                         }},
                     {title:"Last R", field:"last_range", width:75, resizable:false, headerTooltip:"Last Observed Range (km)",
                         formatter:function(cell, formatterParams, onRendered){
-                            return cell.getValue() + " km"; //return the contents of the cell;
+                            if (getCookie('imperial') == 'true') {
+                                return cell.getValue()*0.621371.toFixed(0) + " mi";
+                            } else {
+                                return cell.getValue() + " km";
+                            }
                         }},
-                    {title:"Max R", field:"max_range", width:73, resizable:false, headerTooltip:"Maximum Observed Range (km))",
+                    {title:"Max R", field:"max_range", width:73, resizable:false, headerTooltip:"Maximum Observed Range",
                         formatter:function(cell, formatterParams, onRendered){
-                            return cell.getValue() + " km"; //return the contents of the cell;
+                            if (getCookie('imperial') == 'true') {
+                                return cell.getValue()*0.621371.toFixed(0) + " mi";
+                            } else {
+                                return cell.getValue() + " km";
+                            }
                         }},
                     {formatter:"rowSelection", titleFormatter:"rowSelection", align:"center",  width:40, headerSort:false, titleFormatter: function(cell, formatterParams, onRendered){}}
                 ],
@@ -206,6 +221,7 @@
                 $("#showsonde-skew").prop('disabled', true);
                 $("#hidesonde-skew").prop('disabled', true);
                 $("#download-logs").prop('disabled', true);
+                $("#generate-kml").prop('disabled', true);
             }
 
             async function enableMenu () {
@@ -219,6 +235,7 @@
                 $("#showsonde-skew").prop('disabled', false);
                 $("#hidesonde-skew").prop('disabled', false);
                 $("#download-logs").prop('disabled', false);
+                $("#generate-kml").prop('disabled', false);
             }
 
             if ((window.innerWidth/window.innerHeight) < 1) {
@@ -501,7 +518,7 @@
                                 highest = i;
                             }
                             $.ajax({
-                                url: "/get_log_by_serial/" + selectedrows[i]['serial'],
+                                url: "get_log_by_serial/" + selectedrows[i]['serial'],
                                 dataType: 'json',
                                 async: true,
                                 success: function(data) {
@@ -770,7 +787,7 @@
                 table.selectRow();
                 mymap.eachLayer(function(layer){
                     try {
-                        if (layer['options']['icon']['options']['iconUrl'] == "/static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "/static/img/launch_marker.png") {
+                        if (layer['options']['icon']['options']['iconUrl'] == "static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "static/img/launch_marker.png") {
                             new_icon = layer['options']['icon'];
                             new_icon.options.iconSize = [20, 20];
                             new_icon.options.iconAnchor = [10, 10];
@@ -785,7 +802,7 @@
                 table.deselectRow();
                 mymap.eachLayer(function(layer){
                     try {
-                        if (layer['options']['icon']['options']['iconUrl'] == "/static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "/static/img/launch_marker.png") {
+                        if (layer['options']['icon']['options']['iconUrl'] == "static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "static/img/launch_marker.png") {
                             new_icon = layer['options']['icon'];
                             new_icon.options.iconSize = [15, 15];
                             new_icon.options.iconAnchor = [7.5, 7.5];
@@ -809,7 +826,7 @@
 
                 mymap.eachLayer(function(layer){
                     try {
-                        if (layer['options']['icon']['options']['iconUrl'] == "/static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "/static/img/launch_marker.png") {
+                        if (layer['options']['icon']['options']['iconUrl'] == "static/img/landing_marker.png" || layer['options']['icon']['options']['iconUrl'] == "static/img/launch_marker.png") {
                             if (layer['options']['icon']['options']['iconSize'][0] == 15) {
                                 if (!shown.includes(layer['options']['title'])) {
                                     mymap.removeLayer(layer);
@@ -896,7 +913,7 @@
                     _serial = selectedrows[selectedrows.length-1]['serial'];
                     _type = selectedrows[selectedrows.length-1]['type'];
                     $.post(
-                        "/get_log_detail", 
+                        "get_log_detail", 
                         {serial: _serial, decimation:decimation},
                         async function(data){
                             try {
@@ -1001,13 +1018,13 @@
 
                     if(_serial_list.length == table.getData().length){
                         // Request all log files
-                        window.open("/export_all_log_files" , '_blank');
+                        window.open("export_all_log_files" , '_blank');
                     }else {
                         // Just request the selected ones.
                         // Convert the list to JSON, and then to base64
                         b64 = btoa(JSON.stringify(_serial_list));
                         // Make the request in a new tab
-                        window.open("/export_log_files/"+b64 , '_blank');
+                        window.open("export_log_files/"+b64 , '_blank');
                     }
                 }
             }
@@ -1016,6 +1033,41 @@
                 downloadLogs();
             });
             
+            function generateKML() {
+                // Generate a KML file from a set of log files.
+                selectedrows = table.getSelectedData();
+                if (selectedrows.length > 0) {
+                    // Create the list of log files.
+                    _serial_list = [];
+                    for (let i = 0; i < selectedrows.length; i++){
+                        _serial_list.push(selectedrows[i]['serial']);
+                    }
+
+                    if(_serial_list.length>50){
+                        if (confirm("Warning - downloading lots of log may take some time. Are you sure?")) {
+                            // Just continue on.
+                        } else {
+                            return;
+                        }
+                    }
+
+                    if(_serial_list.length == table.getData().length){
+                        // Request all log files
+                        window.open("generate_kml" , '_blank');
+                    }else {
+                        // Just request the selected ones.
+                        // Convert the list to JSON, and then to base64
+                        b64 = btoa(JSON.stringify(_serial_list));
+                        // Make the request in a new tab
+                        window.open("generate_kml/"+b64 , '_blank');
+                    }
+                }
+            }
+
+            $("#generate-kml").click(function(){
+                generateKML();
+            });
+
             // List of available map layers.
             var Mapnik = L.tileLayer.provider("OpenStreetMap.Mapnik", {edgeBufferTiles: 2});
             var DarkMatter = L.tileLayer.provider("CartoDB.DarkMatter", {edgeBufferTiles: 2});
@@ -1549,6 +1601,7 @@
                 <button id="showsonde-coverage" style="margin:3px auto">Plot Coverage</button>
                 <button id="showsonde-skew" style="margin:3px auto">Plot Skew-T</button>
                 <button id="download-logs" style="margin:3px auto">Download Logs</button>
+                <button id="generate-kml" style="margin:3px auto">Generate KML</button>
             </div>
             <br>
             </div>

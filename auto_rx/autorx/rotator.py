@@ -215,7 +215,12 @@ class Rotator(object):
         _curr_az = _pos[0] % 360.0
         _curr_el = _pos[1]
 
-        if (abs(azimuth - _curr_az) > self.rotator_update_threshold) or (
+        _azimuth_diff = abs(azimuth - _curr_az)
+        if (_azimuth_diff > 180.0):
+            _azimuth_diff = abs(_azimuth_diff - 360.0)
+
+
+        if (_azimuth_diff > self.rotator_update_threshold) or (
             abs(elevation - _curr_el) > self.rotator_update_threshold
         ):
             # Move to the target position.
@@ -320,7 +325,9 @@ class Rotator(object):
         self.rotator_thread_running = False
 
         if self.rotator_thread is not None:
-            self.rotator_thread.join()
+            self.rotator_thread.join(60)
+            if self.rotator_thread.is_alive():
+                self.log_error("rotator control thread failed to join")
 
         self.log_debug("Stopped rotator control thread.")
 

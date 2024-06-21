@@ -21,8 +21,8 @@
 # 
 # EXPERIMENTAL / NOT IMPLEMENTED options:
 # SpyServer - Use an Airspy SpyServer
-# KA9Q - Use a KA9Q SDR Server (Not yet implemented)
-# WARNING: These are still under development and may not work.
+# KA9Q - Use a KA9Q-Radio Server 
+# WARNING: These are still under development and may not work correctly.
 #
 sdr_type = RTLSDR
 
@@ -43,9 +43,9 @@ sdr_quantity = 1
 #
 # Network SDR Connection Details
 #
-# If using either a KA9Q or SpyServer network server, the hostname and port
-# of the server needs to be defined below. Usually this will be running on the
-# same machine as auto_rx, so the defaults are usually fine.
+# If using a spyserver, the hostname and port need to be defined below.
+# Is using KA9Q-Radio, the hostname of the 'radio' server (e.g. sonde.local) needs to be
+# defined, and the port number is unused.
 #
 sdr_hostname = localhost
 sdr_port = 5555
@@ -200,6 +200,9 @@ sondehub_enabled = True
 # How often to push data to the SondeHub Database. (seconds)
 # All received positions are cached and uploaded every X seconds. 
 # Uploads are gzip compressed, so don't require much data transfer.
+# Users receiving Graw DFM sondes may want to set this to 30 to improve
+# the chances of uploads not being rejected by our Z-check.
+# (Refer: https://github.com/projecthorus/sondehub-infra/wiki/DFM-radiosonde-above-1000-and-not-enough-data-to-perform-z-check )
 sondehub_upload_rate = 15
 
 # An optional contact e-mail address.
@@ -362,6 +365,9 @@ launch_notifications = True
 # Send e-mails when a radiosonde is detected descending near your station location
 landing_notifications = True
 
+# Send e-mails when an encrypted radiosonde is detected.
+encrypted_sonde_notifications = True
+
 # Range threshold for Landing notifications (km from your station location)
 landing_range_threshold = 30
 
@@ -452,12 +458,16 @@ save_system_log = False
 # auto_rx operational issues.
 enable_debug_logging = False
 
+# Enable logging of RS41 Calibration data ('subframe' data)
+# This is saved as a binary file with file suffix _subframe.bin
+save_cal_data = False
 
 ###########################
 # WEB INTERFACE SETTINNGS #
 ###########################
 [web]
 # Server Host - Can be set to :: to listen on IPv6
+# Leave this at 0.0.0.0 to have the web server listen on all interfaces.
 web_host = 0.0.0.0
 # Server Port - Ports below 1024 can only be used if you run auto_rx as root (not recommended)
 web_port = 5000
@@ -584,8 +594,6 @@ lms6-1680_experimental = False
 # If someone can confirm that this works, I'll set it to True by default!
 mrz_experimental = False
 
-
-
 # Note: As iMet-4 sondes use AFSK, using fsk_demod does not give any advantage, so there is no experimental decoder for them.
 
 # Optimize 1680 MHz Scanning for RS92-NGP Sondes
@@ -593,6 +601,14 @@ mrz_experimental = False
 # to be detected reliably.
 # Set this to True if you are sure that only RS92-NGPs are flying in your area.
 ngp_tweak = False
+
+# Wideband Radiosonde Detection:
+# Enables some tweaks to better handle detection and decoding of the following radiosonde types:
+# - Intermet iMet-1/4 (Wideband versions)
+# - Weathex WxR-301d
+# If this is enabled in areas with 'narrowband' sondes as well (RS41, DFM, narrowband iMet, etc...) there will likely
+# be degradation in detection and decode performance. 
+wideband_sondes = False
 
 
 ######################

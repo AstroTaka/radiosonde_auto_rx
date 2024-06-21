@@ -5,10 +5,12 @@
 #   Copyright (C) 2018  Mark Jessop <vk5qi@rfhead.net>
 #   Released under GNU GPL v3 or later
 #
+import autorx
 import datetime
 import logging
 import numpy as np
 import os
+import sys
 import platform
 import subprocess
 import time
@@ -22,8 +24,9 @@ from .utils import (
     reset_rtlsdr_by_serial,
     reset_all_rtlsdrs,
     peak_decimation,
+    timeout_cmd
 )
-from .sdr_wrappers import test_sdr, reset_sdr, get_sdr_name, get_sdr_iq_cmd, get_sdr_fm_cmd, get_power_spectrum
+from .sdr_wrappers import test_sdr, reset_sdr, get_sdr_name, get_sdr_iq_cmd, get_sdr_fm_cmd, get_power_spectrum, shutdown_sdr
 
 
 try:
@@ -91,18 +94,10 @@ def run_rtl_power(
     if os.path.exists(filename):
         os.remove(filename)
 
-    # Add -k 30 option, to SIGKILL rtl_power 30 seconds after the regular timeout expires.
-    # Note that this only works with the GNU Coreutils version of Timeout, not the IBM version,
-    # which is provided with OSX (Darwin).
-    if "Darwin" in platform.platform():
-        timeout_kill = ""
-    else:
-        timeout_kill = "-k 30 "
-
     rtl_power_cmd = (
-        "timeout %s%d %s %s-f %d:%d:%d -i %d -1 -c 25%% -p %d -d %s %s%s"
+        "%s %d %s %s-f %d:%d:%d -i %d -1 -c 25%% -p %d -d %s %s%s"
         % (
-            timeout_kill,
+            timeout_cmd(),
             dwell + 10,
             rtl_power_path,
             bias_option,
@@ -239,6 +234,7 @@ def detect_sonde(
     bias=False,
     save_detection_audio=False,
     ngp_tweak=False,
+    wideband_sondes=False
 ):
     """Receive some FM and attempt to detect the presence of a radiosonde.
 
@@ -253,6 +249,7 @@ def detect_sonde(
         bias (bool): If True, enable the bias tee on the SDR.
         save_detection_audio (bool): Save the audio used in detection to a file.
         ngp_tweak (bool): When scanning in the 1680 MHz sonde band, use a narrower FM filter for better RS92-NGP detection.
+        wideband_sondes (bool): Use a wider detection filter to allow detection of Weathex and wideband iMet sondes.
 
     Returns:
         str/None: Returns None if no sonde found, otherwise returns a sonde type, from the following:
@@ -267,7 +264,9 @@ def detect_sonde(
     """
 
     # Notes:
-    # 400 MHz sondes: Use --bw 20  (20 kHz BW)
+    # 400 MHz sondes
+    #  Normal mode: 48 kHz sample rate, 20 kHz IF BW
+    #  Wideband mode: 96 kHz sample rate, 64 kHz IF BW
     # 1680 MHz RS92 Setting: --bw 32
     # 1680 MHz LMS6-1680: Use FM demod. as usual.
 
@@ -285,16 +284,20 @@ def detect_sonde(
 
     # Adjust the detection bandwidth based on the band the scanning is occuring in.
     if frequency < 1000e6:
-        # 400-406 MHz sondes - use a 20 kHz detection bandwidth.
+        # 400-406 MHz sondes
         _mode = "IQ"
-        _iq_bw = 48000
-        _if_bw = 20
+        if wideband_sondes:
+            _iq_bw = 96000
+            _if_bw = 64
+        else:
+            _iq_bw = 48000
+            _if_bw = 20
 
-        # Try and avoid the RTLSDR 403.2 MHz spur.
-        # Note that this is only goign to work if we are detecting on 403.210 or 403.190 MHz.
-        if (abs(403200000 - frequency) < 20000) and (sdr_type == "RTLSDR"):
-            logging.debug("Scanner - Narrowing detection IF BW to avoid RTLSDR spur.")
-            _if_bw = 15
+            # Try and avoid the RTLSDR 403.2 MHz spur.
+            # Note that this is only goign to work if we are detecting on 403.210 or 403.190 MHz.
+            if (abs(403200000 - frequency) < 20000) and (sdr_type == "RTLSDR"):
+                logging.debug("Scanner - Narrowing detection IF BW to avoid RTLSDR spur.")
+                _if_bw = 15
         
     else:
         # 1680 MHz sondes
@@ -314,7 +317,7 @@ def detect_sonde(
 
     if _mode == "IQ":
         # IQ decoding
-        rx_test_command = f"timeout {dwell_time * 2} "
+        rx_test_command = f"{timeout_cmd()} {dwell_time * 2} "
 
         rx_test_command += get_sdr_iq_cmd(
             sdr_type=sdr_type,
@@ -331,8 +334,9 @@ def detect_sonde(
         )
 
         # rx_test_command = (
-        #     "timeout %ds %s %s-p %d -d %s %s-M raw -F9 -s %d -f %d 2>/dev/null |"
+        #     "%s %ds %s %s-p %d -d %s %s-M raw -F9 -s %d -f %d 2>/dev/null |"
         #     % (
+        #         timeout_cmd(),
         #         dwell_time * 2,
         #         rtl_fm_path,
         #         bias_option,
@@ -345,7 +349,8 @@ def detect_sonde(
         # )
         # Saving of Debug audio, if enabled,
         if save_detection_audio:
-            rx_test_command += "tee detect_%s.raw | " % str(rtl_device_idx)
+            detect_iq_path = os.path.join(autorx.logging_path, f"detect_IQ_{frequency}_{_iq_bw}_{str(rtl_device_idx)}.raw")
+            rx_test_command += f" tee {detect_iq_path} |"
 
         rx_test_command += os.path.join(
             rs_path, "dft_detect"
@@ -360,7 +365,7 @@ def detect_sonde(
 
         # Sample Source (rtl_fm)
 
-        rx_test_command = f"timeout {dwell_time * 2} "
+        rx_test_command = f"{timeout_cmd()} {dwell_time * 2} "
 
         rx_test_command += get_sdr_fm_cmd(
             sdr_type=sdr_type,
@@ -379,8 +384,9 @@ def detect_sonde(
         )
 
         # rx_test_command = (
-        #     "timeout %ds %s %s-p %d -d %s %s-M fm -F9 -s %d -f %d 2>/dev/null |"
+        #     "%s %ds %s %s-p %d -d %s %s-M fm -F9 -s %d -f %d 2>/dev/null |"
         #     % (
+        #         timeout_cmd(),
         #         dwell_time * 2,
         #         rtl_fm_path,
         #         bias_option,
@@ -399,7 +405,8 @@ def detect_sonde(
 
         # Saving of Debug audio, if enabled,
         if save_detection_audio:
-            rx_test_command += "tee detect_%s.wav | " % str(rtl_device_idx)
+            detect_audio_path = os.path.join(autorx.logging_path, f"detect_audio_{frequency}_{str(rtl_device_idx)}.wav")
+            rx_test_command += f" tee {detect_audio_path} |"
 
         # Sample decoding / detection
         # Note that we detect for dwell_time seconds, and timeout after dwell_time*2, to catch if no samples are being passed through.
@@ -427,6 +434,10 @@ def detect_sonde(
         ret_output = subprocess.check_output(rx_test_command, shell=True, stderr=FNULL)
         FNULL.close()
         ret_output = ret_output.decode("utf8")
+
+        # Release the SDR channel if necessary
+        shutdown_sdr(sdr_type, rtl_device_idx, sdr_hostname, frequency)
+
     except subprocess.CalledProcessError as e:
         # dft_detect returns a code of 1 if no sonde is detected.
         # logging.debug("Scanner - dfm_detect return code: %s" % e.returncode)
@@ -445,7 +456,7 @@ def detect_sonde(
     except Exception as e:
         # Something broke when running the detection function.
         logging.error(
-            f"Scanner ({_sdr_name}) - Error when running dft_detect - {sdr(e)}"
+            f"Scanner ({_sdr_name}) - Error when running dft_detect - {str(e)}"
         )
         return (None, 0.0)
 
@@ -479,6 +490,8 @@ def detect_sonde(
         else:
             _score = float(_score.strip())
             _offset_est = 0.0
+
+        
     except Exception as e:
         logging.error(
             "Scanner - Error parsing dft_detect output: %s" % ret_output.strip()
@@ -524,11 +537,13 @@ def detect_sonde(
         )
         _sonde_type = "IMET"
     elif "IMET1" in _type:
+        # This could actually be a wideband iMet sonde. We treat this as a IMET4.
         logging.debug(
-            "Scanner (%s) - Detected a iMet Sonde! (Type %s - Unsupported) (Score: %.2f)"
+            "Scanner (%s) - Possible detection of a Wideband iMet Sonde! (Type %s) (Score: %.2f)"
             % (_sdr_name, _type, _score)
         )
-        _sonde_type = "IMET1"
+        # Override the type to IMET4.
+        _sonde_type = "IMET"
     elif "IMETafsk" in _type:
         logging.debug(
             "Scanner (%s) - Detected a iMet Sonde! (Type %s - Unsupported) (Score: %.2f)"
@@ -595,6 +610,25 @@ def detect_sonde(
         else:
             _sonde_type = "MTS01"
 
+    elif "WXR301" in _type:
+        logging.debug(
+            "Scanner (%s) - Detected a Weathex WxR-301D Sonde! (Score: %.2f, Offset: %.1f Hz)"
+            % (_sdr_name, _score, _offset_est)
+        )
+        _sonde_type = "WXR301"
+        # Clear out the offset estimate for WxR-301's as it's not accurate
+        # to do no whitening on the signal.
+        _offset_est = 0.0
+
+    elif "WXRPN9" in _type:
+        logging.debug(
+            "Scanner (%s) - Detected a Weathex WxR-301D Sonde (PN9 Variant)! (Score: %.2f, Offset: %.1f Hz)"
+            % (_sdr_name, _score, _offset_est)
+        )
+        _sonde_type = "WXRPN9"
+        # Clear out the offset estimate for WxR-301's as it's not accurate
+        # to do no whitening on the signal.
+        _offset_est = 0.0
     else:
         _sonde_type = None
 
@@ -649,6 +683,7 @@ class SondeScanner(object):
         temporary_block_list={},
         temporary_block_time=60,
         ngp_tweak=False,
+        wideband_sondes=False
     ):
         """Initialise a Sonde Scanner Object.
 
@@ -698,6 +733,7 @@ class SondeScanner(object):
             temporary_block_list (dict): A dictionary where each attribute represents a frequency that should be blocked for a set time.
             temporary_block_time (int): How long (minutes) frequencies in the temporary block list should remain blocked for.
             ngp_tweak (bool): Narrow the detection filter when searching for 1680 MHz sondes, to enhance detection of RS92-NGPs.
+            wideband_sondes (bool): Use a wider detection filter to allow detection of Weathex and wideband iMet sondes.
         """
 
         # Thread flag. This is set to True when a scan is running.
@@ -736,6 +772,7 @@ class SondeScanner(object):
 
         self.callback = callback
         self.save_detection_audio = save_detection_audio
+        self.wideband_sondes = wideband_sondes
 
         # Temporary block list.
         self.temporary_block_list = temporary_block_list.copy()
@@ -783,9 +820,9 @@ class SondeScanner(object):
     def start(self):
         # Start the scan loop (if not already running)
         if self.sonde_scan_thread is None:
-            self.sonde_scanner_running = True
             self.sonde_scan_thread = Thread(target=self.scan_loop)
             self.sonde_scan_thread.start()
+            self.sonde_scanner_running = True
         else:
             self.log_warning("Sonde scan already running!")
 
@@ -848,28 +885,42 @@ class SondeScanner(object):
                 self.log_warning("SDR produced no output... resetting and retrying.")
                 self.error_retries += 1
                 # Attempt to reset the SDR, if possible.
-                reset_sdr(
-                    self.sdr_type, 
-                    rtl_device_idx = self.rtl_device_idx, 
-                    sdr_hostname = self.sdr_hostname, 
-                    sdr_port = self.sdr_port
-                )
+                try:
+                    reset_sdr(
+                        self.sdr_type, 
+                        rtl_device_idx = self.rtl_device_idx, 
+                        sdr_hostname = self.sdr_hostname, 
+                        sdr_port = self.sdr_port
+                    )
+                except Exception as e:
+                    self.log_error(f"Caught error when trying to reset SDR - {str(e)}")
 
-                time.sleep(10)
+                for _ in range(10):
+                    if not self.sonde_scanner_running:
+                        break
+                    time.sleep(1)
                 continue
             except Exception as e:
                 traceback.print_exc()
                 self.log_error("Caught other error: %s" % str(e))
-                time.sleep(10)
+                for _ in range(10):
+                    if not self.sonde_scanner_running:
+                        break
+                    time.sleep(1)
             else:
                 # Scan completed successfuly! Reset the error counter.
                 self.error_retries = 0
 
             # Sleep before starting the next scan.
-            time.sleep(self.scan_delay)
+            for _ in range(self.scan_delay):
+                if not self.sonde_scanner_running:
+                    self.log_debug("Breaking out of scan loop.")
+                    break
+                time.sleep(1)
 
         self.log_info("Scanner Thread Closed.")
         self.sonde_scanner_running = False
+        self.sonde_scanner_thread = None
 
     def sonde_search(self, first_only=False):
         """Perform a frequency scan across a defined frequency range, and test each detected peak for the presence of a radiosonde.
@@ -927,7 +978,7 @@ class SondeScanner(object):
             (_freq_decimate, _power_decimate) = peak_decimation(freq / 1e6, power, 10)
             scan_result["freq"] = list(_freq_decimate)
             scan_result["power"] = list(_power_decimate)
-            scan_result["timestamp"] = datetime.datetime.utcnow().isoformat()
+            scan_result["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             scan_result["peak_freq"] = []
             scan_result["peak_lvl"] = []
 
@@ -1091,6 +1142,7 @@ class SondeScanner(object):
                 bias=self.bias,
                 dwell_time=self.detect_dwell_time,
                 save_detection_audio=self.save_detection_audio,
+                wideband_sondes=self.wideband_sondes
             )
 
             if detected != None:
@@ -1139,12 +1191,16 @@ class SondeScanner(object):
 
     def stop(self, nowait=False):
         """Stop the Scan Loop"""
-        self.log_info("Waiting for current scan to finish...")
-        self.sonde_scanner_running = False
+        if self.sonde_scanner_running:
+            self.log_info("Waiting for current scan to finish...")
+            self.sonde_scanner_running = False
 
-        # Wait for the sonde scanner thread to close, if there is one.
-        if self.sonde_scan_thread != None and (not nowait):
-            self.sonde_scan_thread.join()
+            # Wait for the sonde scanner thread to close, if there is one.
+            if self.sonde_scan_thread != None and (not nowait):
+                self.sonde_scan_thread.join(60)
+                if self.sonde_scan_thread.is_alive():
+                    self.log_error("Scanning thread did not finish, terminating")
+                    sys.exit(4)
 
     def running(self):
         """Check if the scanner is running"""

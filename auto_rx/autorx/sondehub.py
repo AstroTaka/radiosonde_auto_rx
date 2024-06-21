@@ -10,6 +10,8 @@
 #   Released under GNU GPL v3 or later
 #
 import autorx
+import base64
+import codecs
 import datetime
 import glob
 import gzip
@@ -118,7 +120,7 @@ class SondehubUploader(object):
             "uploader_callsign": self.user_callsign,
             "uploader_position": self.user_position,
             "uploader_antenna": self.user_antenna,
-            "time_received": datetime.datetime.utcnow().strftime(
+            "time_received": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             ),
         }
@@ -226,6 +228,21 @@ class SondehubUploader(object):
             _output["type"] = "MTS01"
             _output["serial"] = telemetry["id"].split("-")[1]
 
+        elif telemetry["type"] == "WXR301":
+            _output["manufacturer"] = "Weathex"
+            _output["type"] = "WxR-301D"
+            _output["serial"] = telemetry["id"].split("-")[1]
+
+            # Double check for the subtype being present, just in case...
+            if "subtype" in telemetry:
+                if telemetry["subtype"] == "WXR_PN9":
+                    _output["subtype"] = "WxR-301D-5k"
+
+        elif telemetry["type"] == "WXRPN9":
+            _output["manufacturer"] = "Weathex"
+            _output["type"] = "WxR-301D-5k"
+            _output["serial"] = telemetry["id"].split("-")[1]
+
         else:
             self.log_error("Unknown Radiosonde Type %s" % telemetry["type"])
             return None
@@ -285,6 +302,22 @@ class SondehubUploader(object):
 
         if "ref_datetime" in telemetry:
             _output["ref_datetime"] = telemetry["ref_datetime"]
+
+        if "rs41_mainboard" in telemetry:
+            _output["rs41_mainboard"] = telemetry["rs41_mainboard"]
+
+        if "rs41_mainboard_fw" in telemetry:
+            _output["rs41_mainboard_fw"] = str(telemetry["rs41_mainboard_fw"])
+
+        if 'rs41_subframe' in telemetry:
+            # RS41 calibration subframe data.
+            # We try to base64 encode this.
+            try:
+                _calbytes = codecs.decode(telemetry['rs41_subframe'], 'hex')
+                _output['rs41_subframe'] = base64.b64encode(_calbytes).decode()
+            except Exception as e:
+                self.log_error(f"Error handling RS41 subframe data.")
+
 
         # Handle the additional SNR and frequency estimation if we have it
         if "snr" in telemetry:

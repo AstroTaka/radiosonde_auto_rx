@@ -105,6 +105,7 @@ function redraw_scan_chart(){
 		var date_converted = date.toLocaleString(window.navigator.language,{hourCycle:'h23', year:"numeric", month:"2-digit", day:'2-digit', hour:'2-digit',minute:'2-digit', second:'2-digit'}) + ' ' + timezone;
 		$('#scan_results').html('<b>Latest Scan:</b> ' + date_converted);
 	} else {
-		$('#scan_results').html('<b>Latest Scan:</b> ' + (scan_chart_latest_timestamp.slice(0, -3) + 'Z').replace("T", " ").replace("Z", "").slice(0, -4) + ' UTC');
+		var date_converted = scan_chart_latest_timestamp.slice(0, 19).replace("T", " ") + ' UTC'
 	}
+	$('#scan_results').html('<b>Latest Scan:</b> ' + date_converted);
 }

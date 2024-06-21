@@ -99,13 +99,13 @@
 
         $( document ).ready(function() {
 
-            namespace = '/update_status';
-
-            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-
+	    namespace = '/update_status';
+	    var socket_path = "{{ url_for("static", filename="") }}".replace('static/', 'socket.io')
+	    var socket = io.connect(location.origin+namespace, {'path': socket_path});
+ 
             $.ajax({
                   // Get station.cfg file.
-                  url: "/get_config",
+                  url: "get_config",
                   dataType: 'json',
                   async: false,
                   success: function(data) {
@@ -129,7 +129,7 @@
 
             $.ajax({
                   // Get local version number.
-                  url: "/get_version",
+                  url: "get_version",
                   dataType: 'json',
                   async: true,
                   success: function(data) {
@@ -196,7 +196,11 @@
             socket.on('scan_event', function(msg) {
                 // There is Scan data ready for us!
                 // Grab the latest set of data.
-                $.getJSON("/get_scan_data", function(data){
+                $.getJSON("get_scan_data", function(data){
+                    if (data.freq.length == 0) {
+                        return;
+                    }
+
                     // Load the data into our data stores.
                     scan_chart_spectra.columns[0] = ['x_spectra'].concat(data.freq);
                     scan_chart_spectra.columns[1] = ['Spectra'].concat(data.power);
@@ -471,8 +475,8 @@
                     {title:'Freq (MHz)', field:"freq", headerSort:true},
                     {title:"ID", field:"id", width:125, headerSort:true, formatter:function(cell, formatterParams, onRendered){
                         _cell_data = cell.getData();
-                        _id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET5|IMET54|MRZ|IMS100|RS11G|MTS01)-/,"");
-                        _sondehub_id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET5|IMET54|MRZ|IMS100|RS11G|MTS01)-/,"");
+                        _id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET5|IMET54|MRZ|IMS100|RS11G|MTS01|WXR)-/,"");
+                        _sondehub_id = _cell_data.id.replace(/^(DFM|M10|M20|IMET|IMET5|IMET54|MRZ|IMS100|RS11G|MTS01|WXR)-/,"");
 
                         // Add Sondehub Link
                         _id += "&nbsp;<a href='http://sondehub.org/" + _sondehub_id + "' title='View on Sondehub' target='_blank'>" + "<img src='{{ url_for('static', filename='img/sondehub.png')}}'/>" + "</a>";
@@ -689,17 +693,6 @@
                         sonde_id_data.vel_h = (sonde_id_data.vel_h*3.6).toFixed(1);
 
 
-                        // Add a link to HabHub if we have habitat enabled.
-                        // if (autorx_config.sondehub_enabled == true) {
-                        //     sonde_id_data.id = "<a href='http://sondehub.org/" + sonde_id.replace(/^(DFM|M10|M20|IMET|IMET54|MRZ)-/,"") + "' target='_blank'>" + sonde_id  + "</a>";
-                        // // These links are only going to work for Vaisala radiosondes since the APRS callsign is never passed through to the web interface,
-                        // // and the APRS callsigns for everything other than RS41s and RS92s is different to the 'full' serials
-                        // } else if (autorx_config.aprs_enabled == true && autorx_config.aprs_server == "radiosondy.info") {
-                        //     sonde_id_data.id = "<a href='https://radiosondy.info/sonde_archive.php?sondenumber=" + sonde_id + "' target='_blank'>" + sonde_id + "</a>";
-                        // } else if (autorx_config.aprs_enabled == true) {
-                        //     sonde_id_data.id = "<a href='https://aprs.fi/#!call=" + sonde_id + "&timerange=3600&tail=3600' target='_blank'>" + sonde_id + "</a>";
-                        // }
-
                         sonde_id_data.realid = sonde_id;
 
                         // Add SNR data, if it exists.
@@ -709,6 +702,14 @@
 
                         // Add data into the 'other' field.
                         sonde_id_data.other = "";
+
+                        if(sonde_id_data.hasOwnProperty('rs41_mainboard')){
+                            // Only print mainboard type if it's not the 'original' mainboard.
+                            if(sonde_id_data.rs41_mainboard !== 'RSM412'){
+                                sonde_id_data.other += sonde_id_data.rs41_mainboard + " ";
+                            }
+                        }
+
                         // Burst timer for RS41s
                         if (sonde_id_data.hasOwnProperty('bt')){
                             if ((sonde_id_data.bt >= 0) && (sonde_id_data.bt < 65535)) {
@@ -718,6 +719,11 @@
                         if (sonde_id_data.hasOwnProperty('batt')){
                             sonde_id_data.other += sonde_id_data.batt.toFixed(1) + " V";
                         }
+
+                        if (sonde_id_data.hasOwnProperty('aux')){
+                            sonde_id_data.type += "-XDATA";
+                        }
+
 
                         telem_data.push(sonde_id_data);
                     });
@@ -736,7 +742,7 @@
             var initial_load_complete = false;
             selected_sonde = "";
             $.ajax({ // Get archived data.
-                  url: "/get_telemetry_archive",
+                  url: "get_telemetry_archive",
                   dataType: 'json',
                   async: true,
                   success: function(data) {
@@ -1571,7 +1577,7 @@
                   <h2 style="display:inline;vertical-align:middle;">Live KML</h2>
                   &nbsp;
                   <div style="display:inline;vertical-align:middle;">
-                      <button onclick="window.location.href='/rs.kml'">SHOW</button>
+                      <button onclick="window.location.href='rs.kml'">SHOW</button>
                   </div>
                   <br>
                   <br>
@@ -1592,7 +1598,7 @@
                   <h2 style="display:inline;vertical-align:middle;">Historical View</h2>
                   &nbsp;
                   <div style="display:inline;vertical-align:middle;">
-                    <button onclick="window.location.href='/historical.html'">OPEN</button>
+                    <button onclick="window.location.href='historical.html'">OPEN</button>
                   </div>
                   <br>
                   <br>
@@ -1611,7 +1617,7 @@
         </div>
         <span style="font-size:2vh;font-size:calc(var(--vh, 1vh) * 2);" id="footertext"></span>
         <p style="font-size:2vh;font-size:calc(var(--vh, 1vh) * 2);">Station: <span id="station_callsign">???</span></p>
-        <p style="font-size:2vh;font-size:calc(var(--vh, 1vh) * 2);">Current Task: <span id="task_status">???</span></p>
+        <p style="font-size:2vh;font-size:calc(var(--vh, 1vh) * 2);">Tasking: <span id="task_status"></span></p>
         <div id="tableid">
             <div id="telem_table"></div>
         </div>
@@ -1658,6 +1664,8 @@
                 <option value="MEISEI">iMS-100</option>
                 <option value="MRZ">MRZ-H1</option>
                 <option value="MTS01">MTS01</option>
+                <option value="WXR301">WXR301</option>
+                <option value="WXRPN9">WXR301 (PN9 variant)</option>
             </select>
             <div style="display:inline;vertical-align:middle;">
                 <button id="start-decoder" onclick="start_decoder();">Start</button>
@@ -1669,6 +1677,9 @@
             </select>
             <div style="display:inline;vertical-align:middle;">
                 <button id="stop-decoder" onclick="stop_decoder();">Stop</button>
+            </div>
+            <div style="display:inline;vertical-align:middle;">
+                <button id="stop-decoder-lockout" onclick="stop_decoder_lockout();">Temp Block</button>
             </div>
             <h2>Scanner Control</h2>
             <p>Scanner</p>
